@@ -1,17 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Cpu, FileText, Shield, Calendar, History, CheckCircle2, Upload, AlertCircle } from 'lucide-react';
 import { applianceService, scheduleService } from '../services/api';
+import AuthRequiredState from '../components/AuthRequiredState';
 
-export default function ApplianceDetailPage({ applianceId, onBack, openOCRModal, openAddScheduleModal }) {
+export default function ApplianceDetailPage({ applianceId, onBack, openOCRModal, openAddScheduleModal, currentUser, openAuthModal, setActivePage }) {
   const [appliance, setAppliance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Overview');
 
   useEffect(() => {
-    if (applianceId) {
+    if (applianceId && currentUser) {
       loadAppliance();
     }
-  }, [applianceId]);
+  }, [applianceId, currentUser]);
+
+  if (!currentUser) {
+    return (
+      <AuthRequiredState
+        title="Sign in to View Appliance Details"
+        pageName="appliance details"
+        openAuthModal={openAuthModal}
+        setActivePage={setActivePage}
+      />
+    );
+  }
 
   const loadAppliance = async () => {
     setLoading(true);

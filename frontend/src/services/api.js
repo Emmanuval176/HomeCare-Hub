@@ -154,6 +154,14 @@ export const reminderService = {
   markRead: async (id) => {
     const res = await api.post(`/reminders/${id}/mark_read/`);
     return res.data;
+  },
+  triggerEmailReminders: async () => {
+    const res = await api.post('/reminders/trigger-emails/');
+    return res.data;
+  },
+  sendTestEmailAlert: async () => {
+    const res = await api.post('/reminders/send-test-email/');
+    return res.data;
   }
 };
 

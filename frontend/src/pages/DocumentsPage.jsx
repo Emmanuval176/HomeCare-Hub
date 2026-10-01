@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Upload, Search, Zap, Trash2, Eye, Download, Filter } from 'lucide-react';
 import { documentService } from '../services/api';
+import AuthRequiredState from '../components/AuthRequiredState';
 
-export default function DocumentsPage({ openOCRModal }) {
+export default function DocumentsPage({ openOCRModal, currentUser, openAuthModal, setActivePage }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -22,8 +23,21 @@ export default function DocumentsPage({ openOCRModal }) {
   };
 
   useEffect(() => {
-    fetchDocuments();
-  }, []);
+    if (currentUser) {
+      fetchDocuments();
+    }
+  }, [currentUser]);
+
+  if (!currentUser) {
+    return (
+      <AuthRequiredState
+        title="Sign in to View Documents"
+        pageName="your Document Vault"
+        openAuthModal={openAuthModal}
+        setActivePage={setActivePage}
+      />
+    );
+  }
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Cpu, Calendar, FileText, ShieldAlert, Bell, ArrowRight, CheckCircle2, Plus, History } from 'lucide-react';
 import { dashboardService, applianceService, scheduleService, warrantyService, documentService, serviceHistoryService } from '../services/api';
+import AuthRequiredState from '../components/AuthRequiredState';
 
-export default function DashboardPage({ setActivePage, onSelectAppliance, openAddApplianceModal }) {
+export default function DashboardPage({ setActivePage, onSelectAppliance, openAddApplianceModal, currentUser, openAuthModal }) {
   const [stats, setStats] = useState({
     total_appliances: 0,
     upcoming_services: 0,
@@ -18,8 +19,21 @@ export default function DashboardPage({ setActivePage, onSelectAppliance, openAd
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (currentUser) {
+      loadData();
+    }
+  }, [currentUser]);
+
+  if (!currentUser) {
+    return (
+      <AuthRequiredState
+        title="Sign in to View Dashboard"
+        pageName="your Dashboard"
+        openAuthModal={openAuthModal}
+        setActivePage={setActivePage}
+      />
+    );
+  }
 
   const loadData = async () => {
     setLoading(true);

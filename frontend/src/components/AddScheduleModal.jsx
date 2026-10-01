@@ -1,22 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, AlertCircle } from 'lucide-react';
+import { X, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { scheduleService, applianceService } from '../services/api';
 
 export default function AddScheduleModal({ isOpen, onClose, appliances = [], defaultApplianceId = null, onSuccess }) {
+  const getTodayString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [localAppliances, setLocalAppliances] = useState(appliances || []);
   const [applianceId, setApplianceId] = useState('');
   const [serviceType, setServiceType] = useState('Routine Maintenance');
-  const [nextServiceDate, setNextServiceDate] = useState('');
+  const [nextServiceDate, setNextServiceDate] = useState(getTodayString());
   const [frequency, setFrequency] = useState('Every 6 months');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetchingAppliances, setFetchingAppliances] = useState(false);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   // Fetch or refresh appliances whenever modal opens
   useEffect(() => {
     if (isOpen) {
       setError('');
+      setSuccessMsg('');
+      setNextServiceDate(getTodayString());
       setFetchingAppliances(true);
 
       const fetchList = async () => {
@@ -58,23 +69,43 @@ export default function AddScheduleModal({ isOpen, onClose, appliances = [], def
       setError('Please select an appliance first.');
       return;
     }
+    if (!nextServiceDate) {
+      setError('Please choose a valid service date.');
+      return;
+    }
+
     setLoading(true);
     setError('');
+    setSuccessMsg('');
 
     try {
       await scheduleService.create({
-        appliance: parseInt(applianceId),
-        service_type: serviceType,
+        appliance: parseInt(applianceId, 10),
+        service_type: serviceType.trim() || 'Routine Maintenance',
         next_service_date: nextServiceDate,
         frequency: frequency,
-        notes: notes,
+        notes: notes.trim(),
         status: 'Pending'
       });
-      if (onSuccess) onSuccess();
-      onClose();
+      setSuccessMsg('Service schedule created successfully! Email notification processed.');
+      setTimeout(() => {
+        if (onSuccess) onSuccess();
+        onClose();
+      }, 700);
     } catch (err) {
       console.error('Create schedule error:', err);
-      setError('Failed to create schedule. Please check the fields.');
+      let errorDetail = 'Failed to create schedule. Please check the fields.';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errorDetail = err.response.data;
+        } else if (typeof err.response.data === 'object') {
+          const messages = Object.entries(err.response.data)
+            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+            .join(' | ');
+          if (messages) errorDetail = messages;
+        }
+      }
+      setError(errorDetail);
     } finally {
       setLoading(false);
     }
@@ -87,12 +118,12 @@ export default function AddScheduleModal({ isOpen, onClose, appliances = [], def
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center">
+            <div className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center font-bold">
               <Calendar className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-bold text-lg text-gray-900 leading-tight">Schedule Maintenance</h3>
-              <p className="text-xs text-gray-500">Set recurring service reminders</p>
+              <p className="text-xs text-gray-500">Set recurring service reminders & email alerts</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-black rounded-full hover:bg-gray-100 cursor-pointer">
@@ -105,6 +136,13 @@ export default function AddScheduleModal({ isOpen, onClose, appliances = [], def
             <div className="p-3 bg-red-50 text-red-700 text-xs font-medium rounded-xl border border-red-200 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="p-3 bg-green-50 text-green-700 text-xs font-medium rounded-xl border border-green-200 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>{successMsg}</span>
             </div>
           )}
 
@@ -154,7 +192,7 @@ export default function AddScheduleModal({ isOpen, onClose, appliances = [], def
               required
               value={nextServiceDate}
               onChange={e => setNextServiceDate(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-black font-medium"
+              className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-black font-medium cursor-pointer"
             />
           </div>
 
@@ -180,7 +218,7 @@ export default function AddScheduleModal({ isOpen, onClose, appliances = [], def
               placeholder="e.g. Check compressor coils, inspect drain tube."
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              className="w-full p-3.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-black"
+              className="w-full p-3.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-black font-medium"
             />
           </div>
 

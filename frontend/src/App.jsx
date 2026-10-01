@@ -24,6 +24,7 @@ export default function App() {
   const [selectedApplianceId, setSelectedApplianceId] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [appliancesList, setAppliancesList] = useState([]);
+  const [pendingPage, setPendingPage] = useState(null);
 
   // Modals state
   const [searchOpen, setSearchOpen] = useState(false);
@@ -39,17 +40,57 @@ export default function App() {
   useEffect(() => {
     // Restore user session if stored
     const storedUser = localStorage.getItem('homecare_user');
-    if (storedUser) {
+    const storedToken = localStorage.getItem('homecare_token');
+    if (storedUser && storedToken) {
       try {
         setCurrentUser(JSON.parse(storedUser));
-      } catch (e) {}
-    } else {
-      // Auto login as demo user by default
-      authService.login('demo', 'demo123')
-        .then(res => setCurrentUser(res.user))
-        .catch(() => {});
+      } catch (e) {
+        localStorage.removeItem('homecare_user');
+        localStorage.removeItem('homecare_token');
+      }
     }
+    // Note: Do NOT auto-login as demo user, so visitors start unauthenticated
   }, []);
+
+  const handleSetCurrentUser = (user) => {
+    setCurrentUser(user);
+    if (user) {
+      if (pendingPage) {
+        setActivePage(pendingPage);
+        setPendingPage(null);
+      } else if (activePage === 'home') {
+        setActivePage('dashboard');
+      }
+    }
+  };
+
+  const handleNavigate = (page) => {
+    if (page === 'home') {
+      setActivePage('home');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // Protected pages check
+    if (!currentUser) {
+      setPendingPage(page);
+      setAuthOpen(true);
+      return;
+    }
+
+    setActivePage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const requireAuth = (callback, targetPage = null) => {
+    if (!currentUser) {
+      if (targetPage) setPendingPage(targetPage);
+      setAuthOpen(true);
+      return false;
+    }
+    if (callback) callback();
+    return true;
+  };
 
   useEffect(() => {
     if (currentUser) {
@@ -58,11 +99,21 @@ export default function App() {
   }, [currentUser, activePage, addApplianceModalOpen, ocrModalOpen]);
 
   const handleSelectAppliance = (id) => {
+    if (!currentUser) {
+      setPendingPage('appliances');
+      setAuthOpen(true);
+      return;
+    }
     setSelectedApplianceId(id);
     setActivePage('appliance-detail');
   };
 
   const handleEditAppliance = (appliance) => {
+    if (!currentUser) {
+      setPendingPage('appliances');
+      setAuthOpen(true);
+      return;
+    }
     setApplianceToEdit(appliance);
     setAddApplianceModalOpen(true);
   };
@@ -73,12 +124,9 @@ export default function App() {
       {/* Top Global Navigation Bar */}
       <Navbar
         activePage={activePage}
-        setActivePage={(page) => {
-          setActivePage(page);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-        openSearch={() => setSearchOpen(true)}
-        openNotifications={() => setNotificationsOpen(true)}
+        setActivePage={handleNavigate}
+        openSearch={() => requireAuth(() => setSearchOpen(true))}
+        openNotifications={() => requireAuth(() => setNotificationsOpen(true))}
         openAuth={() => setAuthOpen(true)}
         currentUser={currentUser}
         setCurrentUser={setCurrentUser}
@@ -88,9 +136,10 @@ export default function App() {
       <main className="flex-1">
         {activePage === 'home' && (
           <HomePage
-            setActivePage={setActivePage}
-            openOCRModal={() => setOcrModalOpen(true)}
-            openAddApplianceModal={() => { setApplianceToEdit(null); setAddApplianceModalOpen(true); }}
+            setActivePage={handleNavigate}
+            currentUser={currentUser}
+            openOCRModal={() => requireAuth(() => setOcrModalOpen(true), 'documents')}
+            openAddApplianceModal={() => requireAuth(() => { setApplianceToEdit(null); setAddApplianceModalOpen(true); }, 'appliances')}
             openWatchDemoModal={() => setWatchDemoModalOpen(true)}
             onSelectAppliance={handleSelectAppliance}
           />
@@ -98,17 +147,21 @@ export default function App() {
 
         {activePage === 'dashboard' && (
           <DashboardPage
-            setActivePage={setActivePage}
+            setActivePage={handleNavigate}
+            currentUser={currentUser}
             onSelectAppliance={handleSelectAppliance}
-            openAddApplianceModal={() => { setApplianceToEdit(null); setAddApplianceModalOpen(true); }}
+            openAddApplianceModal={() => requireAuth(() => { setApplianceToEdit(null); setAddApplianceModalOpen(true); }, 'appliances')}
+            openAuthModal={() => setAuthOpen(true)}
           />
         )}
 
         {activePage === 'appliances' && (
           <AppliancesPage
+            currentUser={currentUser}
             onSelectAppliance={handleSelectAppliance}
-            openAddApplianceModal={() => { setApplianceToEdit(null); setAddApplianceModalOpen(true); }}
+            openAddApplianceModal={() => requireAuth(() => { setApplianceToEdit(null); setAddApplianceModalOpen(true); }, 'appliances')}
             onEditAppliance={handleEditAppliance}
+            openAuthModal={() => setAuthOpen(true)}
           />
         )}
 
@@ -116,58 +169,70 @@ export default function App() {
           <ApplianceDetailPage
             applianceId={selectedApplianceId}
             onBack={() => setActivePage('appliances')}
-            openOCRModal={() => setOcrModalOpen(true)}
+            currentUser={currentUser}
+            openOCRModal={() => requireAuth(() => setOcrModalOpen(true), 'documents')}
             openAddScheduleModal={(appId) => {
-              setScheduleDefaultApplianceId(appId || selectedApplianceId);
-              setAddScheduleModalOpen(true);
+              requireAuth(() => {
+                setScheduleDefaultApplianceId(appId || selectedApplianceId);
+                setAddScheduleModalOpen(true);
+              }, 'services');
             }}
           />
         )}
 
         {activePage === 'documents' && (
           <DocumentsPage
-            openOCRModal={() => setOcrModalOpen(true)}
+            currentUser={currentUser}
+            openOCRModal={() => requireAuth(() => setOcrModalOpen(true), 'documents')}
+            openAuthModal={() => setAuthOpen(true)}
           />
         )}
 
         {activePage === 'warranty' && (
           <WarrantiesPage
+            currentUser={currentUser}
             onSelectAppliance={handleSelectAppliance}
+            openAuthModal={() => setAuthOpen(true)}
           />
         )}
 
         {activePage === 'services' && (
           <ServicesPage
+            currentUser={currentUser}
             openAddScheduleModal={() => {
-              setScheduleDefaultApplianceId(null);
-              setAddScheduleModalOpen(true);
+              requireAuth(() => {
+                setScheduleDefaultApplianceId(null);
+                setAddScheduleModalOpen(true);
+              }, 'services');
             }}
             onSelectAppliance={handleSelectAppliance}
+            openAuthModal={() => setAuthOpen(true)}
           />
         )}
       </main>
 
       {/* Global Footer */}
-      <Footer setActivePage={setActivePage} />
+      <Footer setActivePage={handleNavigate} />
 
       {/* MODALS & DRAWERS */}
       <SearchModal
         isOpen={searchOpen}
         onClose={() => setSearchOpen(false)}
         onSelectAppliance={handleSelectAppliance}
-        setActivePage={setActivePage}
+        setActivePage={handleNavigate}
       />
 
       <NotificationDrawer
         isOpen={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
-        setActivePage={setActivePage}
+        setActivePage={handleNavigate}
+        currentUser={currentUser}
       />
 
       <AuthModal
         isOpen={authOpen}
         onClose={() => setAuthOpen(false)}
-        setCurrentUser={setCurrentUser}
+        setCurrentUser={handleSetCurrentUser}
       />
 
       <OCRModal
@@ -204,7 +269,8 @@ export default function App() {
       <WatchDemoModal
         isOpen={watchDemoModalOpen}
         onClose={() => setWatchDemoModalOpen(false)}
-        setActivePage={setActivePage}
+        setActivePage={handleNavigate}
+        openAuth={() => setAuthOpen(true)}
       />
 
     </div>

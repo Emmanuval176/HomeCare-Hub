@@ -17,6 +17,10 @@ from .serializers import (
     ServiceScheduleSerializer, ServiceRequestSerializer, ServiceHistorySerializer, ReminderSerializer
 )
 from .ocr_service import process_document_ocr
+from .email_service import (
+    send_welcome_email, send_service_reminder_email, send_warranty_expiry_email,
+    check_and_send_due_emails_for_user
+)
 
 
 @api_view(['POST'])
@@ -51,6 +55,9 @@ def register_user(request):
     
     # Auto-seed demo data for new users
     seed_demo_data_for_user(user)
+
+    # Send Welcome Email to user's signup email
+    send_welcome_email(user)
 
     return Response({
         'token': token.key,
@@ -170,7 +177,22 @@ class WarrantyViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        warranty = serializer.save(user=self.request.user)
+        today = timezone.now().date()
+        if warranty.end_date <= (today + datetime.timedelta(days=30)):
+            is_today = (warranty.end_date == today)
+            send_warranty_expiry_email(self.request.user, warranty, is_today=is_today)
+            Reminder.objects.get_or_create(
+                user=self.request.user,
+                appliance=warranty.appliance,
+                due_date=warranty.end_date,
+                reminder_type='Warranty Expiry',
+                defaults={
+                    'title': f"{warranty.appliance.name} Warranty {'Expires Today' if is_today else 'Expiring Soon'}",
+                    'message': f"The warranty for {warranty.appliance.name} {'expires today' if is_today else f'ends on {warranty.end_date}'}.",
+                    'is_read': False
+                }
+            )
 
 
 class ServiceScheduleViewSet(viewsets.ModelViewSet):
@@ -185,7 +207,22 @@ class ServiceScheduleViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        schedule = serializer.save(user=self.request.user)
+        today = timezone.now().date()
+        if schedule.next_service_date <= (today + datetime.timedelta(days=7)):
+            is_today = (schedule.next_service_date == today)
+            send_service_reminder_email(self.request.user, schedule, is_today=is_today)
+            Reminder.objects.get_or_create(
+                user=self.request.user,
+                appliance=schedule.appliance,
+                due_date=schedule.next_service_date,
+                reminder_type='Upcoming Service',
+                defaults={
+                    'title': f"{schedule.appliance.name} Service {'Due Today' if is_today else 'Scheduled'}",
+                    'message': f"Your {schedule.service_type} for {schedule.appliance.name} {'is scheduled for today' if is_today else f'is due on {schedule.next_service_date}'}.",
+                    'is_read': False
+                }
+            )
 
     @action(detail=True, methods=['POST'])
     def mark_completed(self, request, pk=None):
@@ -305,6 +342,54 @@ def global_search(request):
         'service_requests': ServiceRequestSerializer(requests, many=True).data,
         'service_history': ServiceHistorySerializer(history, many=True).data,
     })
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def trigger_due_email_reminders(request):
+    """
+    Scans upcoming/today's service schedules and warranties,
+    and sends automated reminder emails to the authenticated user's email address.
+    """
+    user = request.user
+    result = check_and_send_due_emails_for_user(user)
+    return Response(result, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def send_test_email_alert(request):
+    """
+    Sends sample service reminder and warranty alert emails to the authenticated user's email address.
+    """
+    user = request.user
+    if not user.email:
+        return Response({'error': 'Your profile does not have an email address configured.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Find or use first appliance or sample
+    first_appliance = Appliance.objects.filter(user=user).first()
+    if not first_appliance:
+        return Response({'error': 'No appliances found to generate test reminders for.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    emails_sent = 0
+    # Send sample service reminder
+    sched = ServiceSchedule.objects.filter(user=user).first()
+    if sched:
+        if send_service_reminder_email(user, sched, is_today=True):
+            emails_sent += 1
+    
+    # Send sample warranty reminder
+    war = Warranty.objects.filter(user=user).first()
+    if war:
+        if send_warranty_expiry_email(user, war, is_today=True):
+            emails_sent += 1
+
+    return Response({
+        'status': 'success',
+        'message': f'Service & Warranty reminder emails sent to {user.email}',
+        'recipient': user.email,
+        'emails_sent': emails_sent
+    }, status=status.HTTP_200_OK)
 
 
 def seed_demo_data_for_user(user):

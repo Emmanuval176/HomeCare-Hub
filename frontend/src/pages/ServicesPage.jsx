@@ -1,16 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, History, Plus, CheckCircle2, Clock } from 'lucide-react';
-import { scheduleService, serviceHistoryService } from '../services/api';
+import { Calendar, History, Plus, CheckCircle2, Clock, Mail, AlertCircle } from 'lucide-react';
+import { scheduleService, serviceHistoryService, reminderService } from '../services/api';
+import AuthRequiredState from '../components/AuthRequiredState';
 
-export default function ServicesPage({ openAddScheduleModal, onSelectAppliance }) {
+export default function ServicesPage({ openAddScheduleModal, onSelectAppliance, currentUser, openAuthModal, setActivePage }) {
   const [activeSection, setActiveSection] = useState('schedules'); // schedules or history
   const [schedules, setSchedules] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [emailStatus, setEmailStatus] = useState(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   useEffect(() => {
-    loadAll();
-  }, []);
+    if (currentUser) {
+      loadAll();
+    }
+  }, [currentUser]);
+
+  if (!currentUser) {
+    return (
+      <AuthRequiredState
+        title="Sign in to View Services & Maintenance"
+        pageName="Services & Maintenance Schedules"
+        openAuthModal={openAuthModal}
+        setActivePage={setActivePage}
+      />
+    );
+  }
 
   const loadAll = async () => {
     setLoading(true);
@@ -37,6 +53,25 @@ export default function ServicesPage({ openAddScheduleModal, onSelectAppliance }
     }
   };
 
+  const handleSendEmailAlerts = async () => {
+    setSendingEmail(true);
+    setEmailStatus(null);
+    try {
+      const res = await reminderService.triggerEmailReminders();
+      setEmailStatus({
+        type: 'success',
+        message: `Service alert emails processed! Notifications sent to ${currentUser.email || 'your email'}.`
+      });
+    } catch (e) {
+      setEmailStatus({
+        type: 'error',
+        message: 'Could not send service emails. Please check your account email.'
+      });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 bg-white text-gray-900">
       
@@ -47,13 +82,34 @@ export default function ServicesPage({ openAddScheduleModal, onSelectAppliance }
           <p className="text-gray-500 text-sm mt-1">Set maintenance schedules and track complete appliance service history.</p>
         </div>
 
-        <button
-          onClick={openAddScheduleModal}
-          className="bg-black hover:bg-gray-800 text-white text-xs font-semibold px-6 py-3 rounded-full transition-all shadow-xs flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
-        >
-          <Calendar className="w-4 h-4" /> Schedule Maintenance
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleSendEmailAlerts}
+            disabled={sendingEmail}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-900 text-xs font-semibold px-5 py-3 rounded-full transition-all flex items-center gap-2 cursor-pointer border border-gray-200"
+            title={`Send scheduled service alerts to ${currentUser.email}`}
+          >
+            <Mail className="w-4 h-4 text-blue-600" />
+            {sendingEmail ? 'Sending Email...' : 'Send Service Alerts to Email'}
+          </button>
+
+          <button
+            onClick={openAddScheduleModal}
+            className="bg-black hover:bg-gray-800 text-white text-xs font-semibold px-6 py-3 rounded-full transition-all shadow-xs flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+          >
+            <Calendar className="w-4 h-4" /> Schedule Maintenance
+          </button>
+        </div>
       </div>
+
+      {emailStatus && (
+        <div className={`p-4 rounded-2xl text-xs font-semibold flex items-center gap-2 ${
+          emailStatus.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
+        }`}>
+          {emailStatus.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" /> : <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />}
+          <span>{emailStatus.message}</span>
+        </div>
+      )}
 
       {/* Subnav */}
       <div className="flex space-x-2 border-b border-gray-100 pb-2">
@@ -79,7 +135,9 @@ export default function ServicesPage({ openAddScheduleModal, onSelectAppliance }
       {/* SECTION 1: SCHEDULES */}
       {activeSection === 'schedules' && (
         <div className="space-y-4">
-          {schedules.length === 0 ? (
+          {loading ? (
+            <div className="py-20 text-center text-sm text-gray-400">Loading maintenance schedules...</div>
+          ) : schedules.length === 0 ? (
             <div className="py-20 text-center bg-gray-50 rounded-3xl border border-gray-100">
               <Calendar className="w-10 h-10 mx-auto text-gray-300 mb-2" />
               <p className="font-bold text-gray-700">No maintenance schedules set</p>
@@ -119,7 +177,9 @@ export default function ServicesPage({ openAddScheduleModal, onSelectAppliance }
       {/* SECTION 2: HISTORY */}
       {activeSection === 'history' && (
         <div className="space-y-4">
-          {history.length === 0 ? (
+          {loading ? (
+            <div className="py-20 text-center text-sm text-gray-400">Loading service history...</div>
+          ) : history.length === 0 ? (
             <div className="py-20 text-center bg-gray-50 rounded-3xl border border-gray-100">
               <History className="w-10 h-10 mx-auto text-gray-300 mb-2" />
               <p className="font-bold text-gray-700">No service history logs yet</p>

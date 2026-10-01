@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Filter, Cpu, ArrowRight, Trash2, Edit, MoreVertical } from 'lucide-react';
 import { applianceService } from '../services/api';
+import AuthRequiredState from '../components/AuthRequiredState';
 
-export default function AppliancesPage({ onSelectAppliance, openAddApplianceModal, onEditAppliance }) {
+export default function AppliancesPage({ onSelectAppliance, openAddApplianceModal, onEditAppliance, currentUser, openAuthModal, setActivePage }) {
   const [appliances, setAppliances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -23,8 +24,21 @@ export default function AppliancesPage({ onSelectAppliance, openAddApplianceModa
   };
 
   useEffect(() => {
-    fetchAppliances();
-  }, []);
+    if (currentUser) {
+      fetchAppliances();
+    }
+  }, [currentUser]);
+
+  if (!currentUser) {
+    return (
+      <AuthRequiredState
+        title="Sign in to View Appliances"
+        pageName="your Appliances"
+        openAuthModal={openAuthModal}
+        setActivePage={setActivePage}
+      />
+    );
+  }
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();

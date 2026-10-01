@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, X, Check, Calendar, AlertTriangle, ShieldAlert, FileText, CheckCheck } from 'lucide-react';
+import { Bell, X, Check, Calendar, AlertTriangle, ShieldAlert, FileText, CheckCheck, Mail, Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { reminderService } from '../services/api';
 
-export default function NotificationDrawer({ isOpen, onClose, setActivePage }) {
+export default function NotificationDrawer({ isOpen, onClose, setActivePage, currentUser }) {
   const [reminders, setReminders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [emailStatus, setEmailStatus] = useState(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const fetchReminders = async () => {
     try {
@@ -20,6 +22,7 @@ export default function NotificationDrawer({ isOpen, onClose, setActivePage }) {
   useEffect(() => {
     if (isOpen) {
       fetchReminders();
+      setEmailStatus(null);
     }
   }, [isOpen]);
 
@@ -29,6 +32,45 @@ export default function NotificationDrawer({ isOpen, onClose, setActivePage }) {
       setReminders(prev => prev.map(r => r.id === id ? { ...r, is_read: true } : r));
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleSendEmailReminders = async () => {
+    setSendingEmail(true);
+    setEmailStatus(null);
+    try {
+      const res = await reminderService.triggerEmailReminders();
+      setEmailStatus({
+        type: 'success',
+        message: `Processed reminders! Alerts sent to ${currentUser?.email || 'your email'}.`
+      });
+      fetchReminders();
+    } catch (e) {
+      setEmailStatus({
+        type: 'error',
+        message: 'Could not send reminder emails. Please check account details.'
+      });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    setSendingEmail(true);
+    setEmailStatus(null);
+    try {
+      const res = await reminderService.sendTestEmailAlert();
+      setEmailStatus({
+        type: 'success',
+        message: `Sample Service & Warranty emails dispatched to ${currentUser?.email || 'your email'}!`
+      });
+    } catch (e) {
+      setEmailStatus({
+        type: 'error',
+        message: 'Failed to send test email.'
+      });
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -46,12 +88,49 @@ export default function NotificationDrawer({ isOpen, onClose, setActivePage }) {
             </div>
             <div>
               <h3 className="font-bold text-lg text-gray-900 leading-tight">Reminders & Alerts</h3>
-              <p className="text-xs text-gray-500">Stay informed on services & warranties</p>
+              <p className="text-xs text-gray-500">Service & warranty notification center</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-black rounded-full hover:bg-gray-100">
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-black rounded-full hover:bg-gray-100 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Email Notification Sync Banner */}
+        <div className="p-4 bg-gray-50 border-b border-gray-100 space-y-2.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-500 font-medium">Notification Recipient:</span>
+            <span className="font-bold text-gray-900 truncate max-w-[200px]">{currentUser?.email || 'Registered email'}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={handleSendEmailReminders}
+              disabled={sendingEmail}
+              className="bg-black hover:bg-gray-800 text-white text-[11px] font-semibold py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+            >
+              <Send className="w-3.5 h-3.5" />
+              {sendingEmail ? 'Sending...' : 'Send Due Reminders'}
+            </button>
+
+            <button
+              onClick={handleSendTestEmail}
+              disabled={sendingEmail}
+              className="bg-white hover:bg-gray-100 text-gray-900 text-[11px] font-semibold py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-gray-200 shadow-2xs disabled:opacity-50"
+            >
+              <Mail className="w-3.5 h-3.5 text-blue-600" />
+              Test Email Alert
+            </button>
+          </div>
+
+          {emailStatus && (
+            <div className={`p-2.5 rounded-xl text-[11px] font-medium flex items-center gap-2 ${
+              emailStatus.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}>
+              {emailStatus.type === 'success' ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
+              <span>{emailStatus.message}</span>
+            </div>
+          )}
         </div>
 
         {/* List */}
@@ -92,7 +171,7 @@ export default function NotificationDrawer({ isOpen, onClose, setActivePage }) {
                 {!rem.is_read && (
                   <button
                     onClick={() => handleMarkRead(rem.id)}
-                    className="p-1.5 text-gray-400 hover:text-black hover:bg-gray-100 rounded-lg"
+                    className="p-1.5 text-gray-400 hover:text-black hover:bg-gray-100 rounded-lg cursor-pointer"
                     title="Mark as read"
                   >
                     <Check className="w-4 h-4" />
@@ -107,7 +186,7 @@ export default function NotificationDrawer({ isOpen, onClose, setActivePage }) {
         <div className="p-4 border-t border-gray-100 bg-gray-50 text-center">
           <button
             onClick={() => { setActivePage('services'); onClose(); }}
-            className="text-xs font-semibold text-black hover:underline"
+            className="text-xs font-semibold text-black hover:underline cursor-pointer"
           >
             Manage All Service Schedules →
           </button>
