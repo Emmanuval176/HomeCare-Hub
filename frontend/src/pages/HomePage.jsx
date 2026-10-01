@@ -111,12 +111,7 @@ export default function HomePage({ setActivePage, openOCRModal, openAddAppliance
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
 
-              <button
-                onClick={openWatchDemoModal}
-                className="bg-white hover:bg-gray-50 text-gray-900 font-semibold text-base px-8 py-4 rounded-full border border-gray-200 transition-all shadow-xs flex items-center gap-2 cursor-pointer"
-              >
-                Watch Demo
-              </button>
+
             </div>
           </div>
 
@@ -130,18 +125,8 @@ export default function HomePage({ setActivePage, openOCRModal, openAddAppliance
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
-              {/* Floating Appliance Tag Pills */}
-              <div className="absolute bottom-6 left-6 right-6 flex flex-wrap gap-2">
-                <div className="bg-white/90 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/40 shadow-md text-xs font-bold text-gray-900 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500" /> LG Smart Refrigerator
-                </div>
-                <div className="bg-white/90 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/40 shadow-md text-xs font-bold text-gray-900 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" /> LG DualCOOL Air Conditioner
-                </div>
-                <div className="bg-white/90 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/40 shadow-md text-xs font-bold text-gray-900 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500" /> Sony OLED Television
-                </div>
-              </div>
+
+
             </div>
           </div>
         </div>
