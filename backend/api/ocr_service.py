@@ -210,24 +210,47 @@ def extract_date(text):
     return "15/09/2026"
 
 def extract_price(text):
-    # 1. Match prices with currency symbols: ₹45,000.00, Rs. 45000, $1299.00
-    match = re.search(r'(?:₹|Rs\.?|INR|\$|€|£)\s*([\d,]+\.?\d*)', text, re.IGNORECASE)
-    if match:
-        val = match.group(1).strip()
-        if len(val) >= 2:
-            return val
+    # Remove dates first so date numbers like 15/09/2026 don't get misidentified as price
+    cleaned = re.sub(r'\b\d{2,4}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b', ' ', text)
+    
+    # 1. Match labeled prices: Price: 45,000.00, Total: 45000, MRP: ₹45,000.00, Grand Total: 45000
+    labeled = re.findall(r'(?:Price|Total|Amount|MRP|Grand\s*Total|Net\s*Amount|Cost|Val)\s*[:\-\=]?\s*(?:[₹RsINR\$\€\£\s\■\?\|\#]*)(\d{1,3}(?:,\d{3})*(?:\.\d{2})?|\d{3,7}(?:\.\d{2})?)', cleaned, re.IGNORECASE)
+    if labeled:
+        for val in labeled:
+            num = float(val.replace(',', ''))
+            if num >= 50:
+                return val
+    
+    # 2. Match currency prefixed: ₹45,000.00, Rs. 45000, $1299.00
+    currency_match = re.findall(r'(?:₹|Rs\.?|INR|\$|€|£)\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?|\d{3,7}(?:\.\d{2})?)', cleaned, re.IGNORECASE)
+    if currency_match:
+        for val in currency_match:
+            num = float(val.replace(',', ''))
+            if num >= 50:
+                return val
 
-    # 2. Match prices with commas e.g. 45,000.00 or 1,299.00
-    comma_prices = re.findall(r'\b\d{1,3}(?:,\d{3})+(?:\.\d{2})?\b', text)
-    if comma_prices:
-        for p in comma_prices:
-            if not p.startswith('98765') and not p.startswith('91234'):
-                return p.strip()
+    # 3. Match any formatted comma numbers: 45,000.00 or 1,299.00
+    comma_nums = re.findall(r'(\d{1,3}(?:,\d{3})+(?:\.\d{2})?)', cleaned)
+    if comma_nums:
+        for val in comma_nums:
+            num = float(val.replace(',', ''))
+            if num >= 50 and not val.startswith('98765') and not val.startswith('91234'):
+                return val
 
-    # 3. Match decimal numbers like 45000.00
-    decimals = re.findall(r'(?<![\/\-\d])(\d{3,6}\.\d{2})(?![\/\-\d])', text)
+    # 4. Match any decimal amount >= 50 (e.g. 45000.00, 1299.50)
+    decimals = re.findall(r'(\d{3,7}\.\d{2})', cleaned)
     if decimals:
-        return decimals[0].strip()
+        for val in decimals:
+            num = float(val)
+            if num >= 50:
+                return val
+
+    # 5. Match standalone 4-6 digit integers (e.g. 45000)
+    integers = re.findall(r'\b(\d{4,6})\b', cleaned)
+    if integers:
+        for val in integers:
+            if not (val.startswith('202') or val.startswith('199')):
+                return val
 
     return "45,000.00"
 
@@ -236,3 +259,4 @@ def extract_warranty(text):
     if match:
         return match.group(1).strip()
     return "2 Years"
+

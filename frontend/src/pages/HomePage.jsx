@@ -18,6 +18,50 @@ export default function HomePage({ setActivePage, openOCRModal, openAddAppliance
   const [userAppliances, setUserAppliances] = useState(appliances || []);
   const [loading, setLoading] = useState(false);
 
+  // Typewriter phrases and state
+  const dynamicWords = [
+    'All in one place.',
+    'Managed effortlessly.',
+    'Warranties secured.',
+    'Services on schedule.',
+    'Always worry-free.'
+  ];
+  const [wordIndex, setWordIndex] = useState(0);
+  const [subIndex, setSubIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [blink, setBlink] = useState(true);
+
+  // Blinking cursor effect
+  useEffect(() => {
+    const blinkInterval = setInterval(() => {
+      setBlink((prev) => !prev);
+    }, 500);
+    return () => clearInterval(blinkInterval);
+  }, []);
+
+  // Typing, pausing and backspacing effect
+  useEffect(() => {
+    if (subIndex === dynamicWords[wordIndex].length + 1 && !isDeleting) {
+      const pauseTimeout = setTimeout(() => {
+        setIsDeleting(true);
+      }, 2200);
+      return () => clearTimeout(pauseTimeout);
+    }
+
+    if (subIndex === 0 && isDeleting) {
+      setIsDeleting(false);
+      setWordIndex((prev) => (prev + 1) % dynamicWords.length);
+      return;
+    }
+
+    const typingSpeed = isDeleting ? 35 : 85;
+    const typingTimeout = setTimeout(() => {
+      setSubIndex((prev) => prev + (isDeleting ? -1 : 1));
+    }, typingSpeed);
+
+    return () => clearTimeout(typingTimeout);
+  }, [subIndex, isDeleting, wordIndex]);
+
   const subNavItems = [
     { name: 'All Appliances', target: 'appliances' },
     { name: 'Documents', target: 'documents' },
@@ -84,9 +128,16 @@ export default function HomePage({ setActivePage, openOCRModal, openAddAppliance
           {/* Left Hero Content */}
           <div className="lg:col-span-6 space-y-6">
 
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-black leading-[1.08]">
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-black leading-[1.08] min-h-[2.2em]">
               Your home.<br />
-              <span className="text-gray-900">All in one place.</span>
+              <span className="text-gray-900 inline-flex items-center">
+                <span>{dynamicWords[wordIndex].substring(0, subIndex)}</span>
+                <span
+                  className={`inline-block w-[3px] sm:w-[5px] h-[0.85em] bg-black ml-1.5 align-middle rounded-full ${
+                    blink ? 'opacity-100' : 'opacity-0'
+                  } transition-opacity duration-100`}
+                />
+              </span>
             </h1>
 
             <p className="text-lg text-gray-600 max-w-lg leading-relaxed">
