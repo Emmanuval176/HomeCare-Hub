@@ -33,6 +33,7 @@ export default function App() {
   const [addApplianceModalOpen, setAddApplianceModalOpen] = useState(false);
   const [applianceToEdit, setApplianceToEdit] = useState(null);
   const [addScheduleModalOpen, setAddScheduleModalOpen] = useState(false);
+  const [scheduleDefaultApplianceId, setScheduleDefaultApplianceId] = useState(null);
   const [watchDemoModalOpen, setWatchDemoModalOpen] = useState(false);
 
   useEffect(() => {
@@ -116,7 +117,10 @@ export default function App() {
             applianceId={selectedApplianceId}
             onBack={() => setActivePage('appliances')}
             openOCRModal={() => setOcrModalOpen(true)}
-            openAddScheduleModal={() => setAddScheduleModalOpen(true)}
+            openAddScheduleModal={(appId) => {
+              setScheduleDefaultApplianceId(appId || selectedApplianceId);
+              setAddScheduleModalOpen(true);
+            }}
           />
         )}
 
@@ -134,7 +138,10 @@ export default function App() {
 
         {activePage === 'services' && (
           <ServicesPage
-            openAddScheduleModal={() => setAddScheduleModalOpen(true)}
+            openAddScheduleModal={() => {
+              setScheduleDefaultApplianceId(null);
+              setAddScheduleModalOpen(true);
+            }}
             onSelectAppliance={handleSelectAppliance}
           />
         )}
@@ -183,8 +190,12 @@ export default function App() {
 
       <AddScheduleModal
         isOpen={addScheduleModalOpen}
-        onClose={() => setAddScheduleModalOpen(false)}
+        onClose={() => {
+          setAddScheduleModalOpen(false);
+          setScheduleDefaultApplianceId(null);
+        }}
         appliances={appliancesList}
+        defaultApplianceId={scheduleDefaultApplianceId}
         onSuccess={() => {
           setActivePage('services');
         }}

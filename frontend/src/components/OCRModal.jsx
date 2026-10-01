@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Upload, FileText, CheckCircle2, AlertCircle, RefreshCw, ArrowRight, Cpu, Zap, ShieldCheck } from 'lucide-react';
 import { documentService, applianceService } from '../services/api';
 
@@ -18,6 +18,7 @@ export default function OCRModal({ isOpen, onClose, appliances = [], onSuccess }
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [docType, setDocType] = useState('Purchase Bill');
+  const [localAppliances, setLocalAppliances] = useState(appliances);
   const [selectedApplianceId, setSelectedApplianceId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -33,6 +34,14 @@ export default function OCRModal({ isOpen, onClose, appliances = [], onSuccess }
     warranty_duration: '',
     raw_text: ''
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      applianceService.getAll().then(data => {
+        if (data) setLocalAppliances(data);
+      }).catch(() => {});
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -168,7 +177,7 @@ export default function OCRModal({ isOpen, onClose, appliances = [], onSuccess }
               <p className="text-xs text-gray-500">OpenCV Preprocessing, PyPDF & PyTesseract Text Extraction</p>
             </div>
           </div>
-          <button onClick={handleClose} className="p-2 text-gray-400 hover:text-black rounded-full hover:bg-gray-100">
+          <button onClick={handleClose} className="p-2 text-gray-400 hover:text-black rounded-full hover:bg-gray-100 cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -220,7 +229,7 @@ export default function OCRModal({ isOpen, onClose, appliances = [], onSuccess }
                 <select
                   value={docType}
                   onChange={(e) => setDocType(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-black bg-white"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-black bg-white cursor-pointer font-medium"
                 >
                   <option value="Purchase Bill">Purchase Bill</option>
                   <option value="Invoice">Invoice</option>
@@ -236,11 +245,13 @@ export default function OCRModal({ isOpen, onClose, appliances = [], onSuccess }
                 <select
                   value={selectedApplianceId}
                   onChange={(e) => setSelectedApplianceId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-black bg-white"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-black bg-white cursor-pointer font-medium"
                 >
                   <option value="">Auto-create appliance from OCR</option>
-                  {appliances.map(app => (
-                    <option key={app.id} value={app.id}>{app.name} ({app.location})</option>
+                  {localAppliances.map(app => (
+                    <option key={app.id} value={String(app.id)}>
+                      {app.brand ? `${app.brand} ` : ''}{app.name} ({app.category || 'Appliance'}{app.location ? ` - ${app.location}` : ''})
+                    </option>
                   ))}
                 </select>
               </div>
