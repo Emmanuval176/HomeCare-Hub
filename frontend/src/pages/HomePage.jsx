@@ -130,12 +130,13 @@ export default function HomePage({ setActivePage, openOCRModal, openAddAppliance
 
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-black leading-[1.08] min-h-[2.2em]">
               Your home.<br />
-              <span className="text-gray-900 inline-flex items-center">
+              <span className="text-gray-900 inline-flex items-baseline">
                 <span>{dynamicWords[wordIndex].substring(0, subIndex)}</span>
                 <span
-                  className={`inline-block w-[3px] sm:w-[5px] h-[0.85em] bg-black ml-1.5 align-middle rounded-full ${
+                  className={`inline-block w-[3px] sm:w-[4px] bg-black ml-1 rounded-full ${
                     blink ? 'opacity-100' : 'opacity-0'
                   } transition-opacity duration-100`}
+                  style={{ height: '0.75em', position: 'relative', top: '-0.05em' }}
                 />
               </span>
             </h1>

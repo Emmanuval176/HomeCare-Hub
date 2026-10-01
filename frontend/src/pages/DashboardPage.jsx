@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Cpu, Calendar, FileText, ShieldAlert, Bell, ArrowRight, CheckCircle2, Plus, History } from 'lucide-react';
-import { dashboardService, applianceService, scheduleService, warrantyService, documentService, serviceHistoryService } from '../services/api';
+import { Cpu, Calendar, FileText, ShieldAlert, Bell, ArrowRight, CheckCircle2, Plus } from 'lucide-react';
+import { dashboardService, applianceService, scheduleService, warrantyService, documentService } from '../services/api';
 import AuthRequiredState from '../components/AuthRequiredState';
 
 export default function DashboardPage({ setActivePage, onSelectAppliance, openAddApplianceModal, currentUser, openAuthModal }) {
@@ -14,7 +14,7 @@ export default function DashboardPage({ setActivePage, onSelectAppliance, openAd
   const [appliances, setAppliances] = useState([]);
   const [schedules, setSchedules] = useState([]);
   const [warranties, setWarranties] = useState([]);
-  const [history, setHistory] = useState([]);
+
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,19 +38,17 @@ export default function DashboardPage({ setActivePage, onSelectAppliance, openAd
   const loadData = async () => {
     setLoading(true);
     try {
-      const [statsRes, appsRes, schedRes, warRes, histRes, docRes] = await Promise.all([
+      const [statsRes, appsRes, schedRes, warRes, docRes] = await Promise.all([
         dashboardService.getStats().catch(() => null),
         applianceService.getAll().catch(() => []),
         scheduleService.getAll().catch(() => []),
         warrantyService.getAll().catch(() => []),
-        serviceHistoryService.getAll().catch(() => []),
         documentService.getAll().catch(() => [])
       ]);
       if (statsRes) setStats(statsRes);
       if (appsRes) setAppliances(appsRes);
       if (schedRes) setSchedules(schedRes);
       if (warRes) setWarranties(warRes);
-      if (histRes) setHistory(histRes);
       if (docRes) setDocuments(docRes);
     } catch (e) {
       console.error(e);
@@ -176,34 +174,7 @@ export default function DashboardPage({ setActivePage, onSelectAppliance, openAd
             </div>
           </div>
 
-          {/* RECENT SERVICE HISTORY LOGS */}
-          <div className="bg-white rounded-3xl border border-gray-200/90 p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="font-extrabold text-base tracking-wider text-black uppercase">Recent Service History</h3>
-              <button onClick={() => setActivePage('services')} className="text-xs font-bold text-black hover:underline cursor-pointer">
-                View All History →
-              </button>
-            </div>
 
-            <div className="space-y-3">
-              {history.length === 0 ? (
-                <p className="text-xs text-gray-400 py-4 text-center">No service history records yet.</p>
-              ) : (
-                history.slice(0, 3).map(h => (
-                  <div key={h.id} className="p-4 rounded-2xl border border-gray-100 bg-white flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-black">{h.service_type} ({h.appliance_name})</span>
-                      <p className="text-xs text-gray-500">{h.description}</p>
-                      <p className="text-[10px] text-gray-400 mt-1">Date: {h.service_date} • {h.provider}</p>
-                    </div>
-                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
-                      {h.status}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
         </div>
 
         {/* RIGHT COLUMN */}
