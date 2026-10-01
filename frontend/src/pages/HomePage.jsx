@@ -1,8 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight, ArrowUpRight, Plus, Cpu, FileText, Calendar, Wrench, Shield, Bell, History, MoreVertical, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { applianceService } from '../services/api';
 
-export default function HomePage({ setActivePage, openOCRModal, openAddApplianceModal, openWatchDemoModal, onSelectAppliance }) {
+const DEFAULT_CATEGORY_IMAGES = {
+  'Refrigerator': 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=800&q=80',
+  'Air Conditioner': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=800&q=80',
+  'Washing Machine': 'https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?auto=format&fit=crop&w=800&q=80',
+  'Television': 'https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=800&q=80',
+  'Microwave': 'https://images.unsplash.com/photo-1585659722983-3a675dabf23d?auto=format&fit=crop&w=800&q=80',
+  'Water Heater': 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
+  'Laptop': 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=800&q=80',
+  'Other': 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
+};
+
+export default function HomePage({ setActivePage, openOCRModal, openAddApplianceModal, onSelectAppliance, appliances = [] }) {
   const [activeSubNav, setActiveSubNav] = useState('All Appliances');
+  const [userAppliances, setUserAppliances] = useState(appliances || []);
+  const [loading, setLoading] = useState(false);
 
   const subNavItems = [
     { name: 'All Appliances', target: 'appliances' },
@@ -44,44 +58,21 @@ export default function HomePage({ setActivePage, openOCRModal, openAddAppliance
     }
   ];
 
-  const showcaseAppliances = [
-    {
-      id: 1,
-      name: 'LG Refrigerator',
-      category: 'Kitchen',
-      location: 'Kitchen',
-      status: 'Active',
-      image: 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=800&q=80',
-      model: 'GL-B257'
-    },
-    {
-      id: 2,
-      name: 'LG Air Conditioner',
-      category: 'Bedroom',
-      location: 'Bedroom',
-      status: 'Service Due',
-      image: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=800&q=80',
-      model: 'DualCOOL-1.5T'
-    },
-    {
-      id: 3,
-      name: 'Samsung Washing Machine',
-      category: 'Utility Room',
-      location: 'Utility Room',
-      status: 'Active',
-      image: 'https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?auto=format&fit=crop&w=800&q=80',
-      model: 'WW90T-FrontLoad'
-    },
-    {
-      id: 4,
-      name: 'Sony Television',
-      category: 'Living Room',
-      location: 'Living Room',
-      status: 'Active',
-      image: 'https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=800&q=80',
-      model: 'Bravia XR-65'
-    }
-  ];
+  useEffect(() => {
+    setLoading(true);
+    applianceService.getAll()
+      .then(data => {
+        if (Array.isArray(data)) {
+          setUserAppliances(data);
+        }
+      })
+      .catch(err => {
+        console.error('Error fetching appliances for home:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [appliances]);
 
   return (
     <div className="space-y-24 bg-white text-gray-900 pb-16">
@@ -227,44 +218,69 @@ export default function HomePage({ setActivePage, openOCRModal, openAddAppliance
         </div>
 
         {/* Appliance Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {showcaseAppliances.map((app) => (
-            <div
-              key={app.id}
-              onClick={() => onSelectAppliance(app.id)}
-              className="group bg-white rounded-3xl border border-gray-200/90 overflow-hidden hover-lift cursor-pointer p-5 flex flex-col justify-between transition-all"
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white rounded-3xl border border-gray-100 p-5 h-72 animate-pulse bg-gray-50/50" />
+            ))}
+          </div>
+        ) : userAppliances.length === 0 ? (
+          <div className="py-16 text-center bg-gray-50 rounded-3xl border border-gray-100 space-y-4">
+            <Cpu className="w-12 h-12 mx-auto text-gray-300" />
+            <div>
+              <h3 className="text-lg font-bold text-gray-800">No appliances added yet</h3>
+              <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+                Add your household appliances or scan your purchase bills with OCR to get started.
+              </p>
+            </div>
+            <button
+              onClick={openAddApplianceModal}
+              className="bg-black hover:bg-gray-800 text-white text-xs font-semibold px-6 py-3 rounded-full transition-all shadow-xs inline-flex items-center gap-2 cursor-pointer"
             >
-              <div>
-                <div className="relative aspect-[4/3] rounded-2xl overflow-hidden mb-4 bg-gray-50 border border-gray-100">
-                  <img
-                    src={app.image}
-                    alt={app.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute top-3 left-3">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase border shadow-xs ${app.status === 'Active'
-                      ? 'bg-green-50 text-green-700 border-green-200'
-                      : 'bg-amber-50 text-amber-700 border-amber-200'
+              <Plus className="w-4 h-4" /> Add Your First Appliance
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {userAppliances.map((app) => (
+              <div
+                key={app.id}
+                onClick={() => onSelectAppliance(app.id)}
+                className="group bg-white rounded-3xl border border-gray-200/90 overflow-hidden hover-lift cursor-pointer p-5 flex flex-col justify-between transition-all shadow-2xs"
+              >
+                <div>
+                  <div className="relative aspect-[4/3] rounded-2xl overflow-hidden mb-4 bg-gray-50 border border-gray-100">
+                    <img
+                      src={app.image_url || DEFAULT_CATEGORY_IMAGES[app.category] || DEFAULT_CATEGORY_IMAGES['Other']}
+                      alt={app.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute top-3 left-3">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase border shadow-xs ${
+                        app.status === 'Active'
+                          ? 'bg-green-50 text-green-700 border-green-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
                       }`}>
-                      {app.status}
-                    </span>
+                        {app.status || 'Active'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{app.category}</p>
+                  <h3 className="text-lg font-bold text-black tracking-tight mt-0.5">{app.name}</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Location: {app.location || 'Home'}</p>
+                </div>
+
+                <div className="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400 font-medium">
+                  <span className="truncate max-w-[120px]">Model: {app.model_number || 'N/A'}</span>
+                  <div className="w-8 h-8 rounded-full border border-gray-200 group-hover:bg-black group-hover:text-white flex items-center justify-center transition-all shrink-0">
+                    <ArrowRight className="w-4 h-4" />
                   </div>
                 </div>
-
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{app.category}</p>
-                <h3 className="text-lg font-bold text-black tracking-tight mt-0.5">{app.name}</h3>
-                <p className="text-xs text-gray-500 mt-0.5">Location: {app.location}</p>
               </div>
-
-              <div className="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400 font-medium">
-                <span>Model: {app.model}</span>
-                <div className="w-8 h-8 rounded-full border border-gray-200 group-hover:bg-black group-hover:text-white flex items-center justify-center transition-all">
-                  <ArrowRight className="w-4 h-4" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
     </div>

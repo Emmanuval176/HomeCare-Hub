@@ -142,6 +142,7 @@ export default function App() {
             openAddApplianceModal={() => requireAuth(() => { setApplianceToEdit(null); setAddApplianceModalOpen(true); }, 'appliances')}
             openWatchDemoModal={() => setWatchDemoModalOpen(true)}
             onSelectAppliance={handleSelectAppliance}
+            appliances={appliancesList}
           />
         )}
 
